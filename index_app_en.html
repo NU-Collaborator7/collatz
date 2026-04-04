@@ -2,42 +2,96 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Collatz</title>
+<title>Collatz Conjecture Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  body{background:black;color:white;font:14px Inter,sans-serif;max-width:400px;margin:20px auto;padding:20px}
-  input,button{background:black;border:1px solid white;color:white;padding:8px;border-radius:4px;font:inherit}
-  button{background:white;color:black;font-weight:700}
-  #c-box{height:150px;margin:10px 0}
-  #log{height:120px;overflow:auto;font-size:10px;border-top:1px solid gray}
-  .e{color:gray} .o{color:lime}
+  body { background:#111; color:#ccc; font:14px/1.6 monospace; margin:0; padding:16px; }
+  h1 { color:#0f9; font-size:16px; margin:0 0 12px; }
+  .row { display:flex; gap:8px; margin-bottom:12px; align-items:center; }
+  input { background:#222; border:1px solid #444; color:#0f9; font:14px monospace; padding:6px 10px; border-radius:4px; width:120px; }
+  button { background:#0f9; color:#111; border:none; border-radius:4px; padding:6px 14px; font:bold 13px monospace; cursor:pointer; }
+  #clear { background:#333; color:#888; }
+  .chart-box { background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:10px; height:200px; margin-bottom:12px; }
+  #log { background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:10px; height:340px; overflow-y:auto; font-size:12px; }
+  .even { color:#4db8ff; display:block; }
+  .odd  { color:#ff9f43; display:block; }
+  .done { color:#0f9;    display:block; font-weight:bold; margin-top:4px; }
 </style>
 </head>
 <body>
-<h1 style="color:lime;font-size:18px">Collatz</h1>
-<div style="display:flex;gap:5px">
-  <input id="n" type="number" placeholder="Value" style="flex:1">
+<h1>Collatz Conjecture Calculator</h1>
+<hr color="white">
+<p>The Collatz Conjecture states that for any positive integer, if you repeat the operation of dividing it by 2 if it is even, or multiplying it by 3 and adding 1 if it is odd, it will always eventually reach 1. Proposed by Lothar Collatz in 1937.</p>
+<hr color="white">
+<div class="row">
+  <input id="n" type="number" min="1" placeholder="Enter integer" />
   <button onclick="run()">RUN</button>
-  <button onclick="reset()" style="background:none;color:white;border:none">✕</button>
+  <button id="clear" onclick="clearAll()">CLEAR</button>
 </div>
-<div id="c-box"><canvas id="c"></canvas></div>
-<div id="log">Ready</div>
+<div class="chart-box"><canvas id="c"></canvas></div>
+<div id="log">Please enter a number and click RUN.</div>
+ 
 <script>
-let ctx=document.getElementById('c'), chart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[]},options:{responsive:1,maintainAspectRatio:0,plugins:{legend:0},scales:{x:{display:0},y:{grid:{color:'dimgray'}}}}});
-function run(){
-  let v=parseInt(document.getElementById('n').value); if(!v||v<1)return;
-  let seq=[v], logs='', max=v;
-  while(v>1){
-    if(v%2==0){ logs+=`<span class="e">${v}→${v/2}</span><br>`; v/=2; }
-    else{ logs+=`<span class="o">${v}→${3*v+1}</span><br>`; v=3*v+1; }
-    seq.push(v); if(v>max)max=v;
+const chart = new Chart('c', {
+  type:'line', data:{labels:[],datasets:[]},
+  options:{
+    responsive:true, maintainAspectRatio:false, animation:{duration:300},
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#666',maxTicksLimit:10},grid:{color:'#222'}},
+      y:{ticks:{color:'#666'},grid:{color:'#222'}}
+    }
   }
-  document.getElementById('log').innerHTML=logs+`<b class="o">Steps: ${seq.length-1} | Max: ${max}</b>`;
-  chart.data.labels=seq.map((_,i)=>i);
-  chart.data.datasets=[{data:seq,borderColor:'lime',pointRadius:0,borderWidth:2,tension:0.1}];
+});
+ 
+function collatz(n) {
+  const seq=[n], logs=[];
+  while (n>1) {
+    if (n%2===0) {
+      const r=n/2;
+      logs.push({t:'even',s:`${n} is even -> divide by 2`});
+      logs.push({t:'even',s:`  ${n} / 2 = ${r}`});
+      n=r;
+    } else {
+      const r=3*n+1;
+      logs.push({t:'odd',s:`${n} is odd -> 3n + 1`});
+      logs.push({t:'odd',s:`  3 * ${n} + 1 = ${r}`});
+      n=r;
+    }
+    seq.push(n);
+  }
+  return {seq, logs};
+}
+ 
+function run() {
+  const n = parseInt(document.getElementById('n').value);
+  if (!n||n<1) return;
+  const {seq,logs} = collatz(n);
+ 
+  const log = document.getElementById('log');
+  log.innerHTML = '';
+  logs.forEach(({t,s})=>{ const e=document.createElement('span'); e.className=t; e.textContent=s; log.appendChild(e); });
+  const done=document.createElement('span'); done.className='done';
+  done.textContent=`Done - ${seq.length-1} steps, Max value: ${Math.max(...seq).toLocaleString()}`;
+  log.appendChild(done);
+ 
+  chart.data.labels = seq.map((_,i)=>i);
+  chart.data.datasets = [{
+    data:seq, borderColor:'#0f9', borderWidth:1.5,
+    pointBackgroundColor: seq.map(v=>v%2===0?'#4db8ff':'#ff9f43'),
+    pointRadius:3, fill:false, tension:0.2
+  }];
   chart.update();
 }
-function reset(){document.getElementById('n').value='';document.getElementById('log').innerHTML='Ready';chart.data.datasets=[];chart.update();}
+ 
+function clearAll() {
+  document.getElementById('n').value='';
+  document.getElementById('log').innerHTML='Please enter a number and click RUN.';
+  chart.data.labels=[]; chart.data.datasets=[]; chart.update();
+}
+ 
+document.getElementById('n').addEventListener('keydown',e=>e.key==='Enter'&&run());
 </script>
 </body>
 </html>
