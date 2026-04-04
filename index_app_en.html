@@ -1,47 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Collatz Simulator</title>
+<meta charset="UTF-8">
+<title>Collatz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  body{background:black;color:white;font:14px Inter,sans-serif;max-width:400px;margin:20px auto;padding:20px}
+  input,button{background:black;border:1px solid white;color:white;padding:8px;border-radius:4px;font:inherit}
+  button{background:white;color:black;font-weight:700}
+  #c-box{height:150px;margin:10px 0}
+  #log{height:120px;overflow:auto;font-size:10px;border-top:1px solid gray}
+  .e{color:gray} .o{color:lime}
+</style>
 </head>
-<body style="background:MidnightBlue; color:White; font-family:sans-serif; max-width:480px; margin:0 auto; padding:20px; line-height:1.4">
-  <h2 style="color:SkyBlue; text-align:center; margin-bottom:10px">Collatz Conjecture</h2>
-  
-  <p style="font-size:12px; margin-bottom:15px">
-    The Collatz Conjecture states that for any positive integer, if you repeat the operation of dividing it by 2 if it is even, or multiplying it by 3 and adding 1 if it is odd, it will always eventually reach 1. Proposed by Lothar Collatz in 1937.
-  </p>
-
-  <div style="display:flex; gap:8px; margin-bottom:15px">
-    <input type="number" id="n" placeholder="Enter number" style="flex:1; background:transparent; border:1px solid SkyBlue; color:White; padding:8px; border-radius:4px">
-    <button onclick="run()" style="background:SkyBlue; border:0; color:MidnightBlue; font-weight:bold; padding:8px 15px; border-radius:4px; cursor:pointer">RUN</button>
-  </div>
-
-  <div id="stat" style="font-size:12px; color:SkyBlue; display:flex; justify-content:space-between; margin-bottom:10px"></div>
-  <div style="height:180px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:15px"><canvas id="c"></canvas></div>
-  <div id="log" style="height:150px; overflow-y:auto; font-size:12px; border-top:1px solid SkyBlue; padding-top:10px"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <script>
-    let ch;
-    function run() {
-      let v = parseInt(document.getElementById('n').value), seq = [v], h = '';
-      if (!v || v < 1) return;
-      while (v > 1) {
-        let e = v % 2 === 0;
-        h += `<div style="color:${e?'White':'SkyBlue'}">${v} ${e ? '→ /2' : '→ *3+1'}</div>`;
-        v = e ? v / 2 : v * 3 + 1;
-        seq.push(v);
-      }
-      document.getElementById('log').innerHTML = h + "<b>Done: 1</b>";
-      document.getElementById('stat').innerHTML = `<span>Steps: ${seq.length-1}</span><span>Max: ${Math.max(...seq)}</span>`;
-      if (ch) ch.destroy();
-      ch = new Chart(document.getElementById('c'), {
-        type: 'line',
-        data: { labels: seq.map((_, i) => i), datasets: [{ data: seq, borderColor: 'SkyBlue', borderWidth: 2, pointRadius: 0, tension: 0.2 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: 0 }, scales: { x: { display: false }, y: { ticks: { color: 'SkyBlue', font: { size: 10 } } } } }
-      });
-    }
-  </script>
+<body>
+<h1 style="color:lime;font-size:18px">Collatz</h1>
+<div style="display:flex;gap:5px">
+  <input id="n" type="number" placeholder="Value" style="flex:1">
+  <button onclick="run()">RUN</button>
+  <button onclick="reset()" style="background:none;color:white;border:none">✕</button>
+</div>
+<div id="c-box"><canvas id="c"></canvas></div>
+<div id="log">Ready</div>
+<script>
+let ctx=document.getElementById('c'), chart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[]},options:{responsive:1,maintainAspectRatio:0,plugins:{legend:0},scales:{x:{display:0},y:{grid:{color:'dimgray'}}}}});
+function run(){
+  let v=parseInt(document.getElementById('n').value); if(!v||v<1)return;
+  let seq=[v], logs='', max=v;
+  while(v>1){
+    if(v%2==0){ logs+=`<span class="e">${v}→${v/2}</span><br>`; v/=2; }
+    else{ logs+=`<span class="o">${v}→${3*v+1}</span><br>`; v=3*v+1; }
+    seq.push(v); if(v>max)max=v;
+  }
+  document.getElementById('log').innerHTML=logs+`<b class="o">Steps: ${seq.length-1} | Max: ${max}</b>`;
+  chart.data.labels=seq.map((_,i)=>i);
+  chart.data.datasets=[{data:seq,borderColor:'lime',pointRadius:0,borderWidth:2,tension:0.1}];
+  chart.update();
+}
+function reset(){document.getElementById('n').value='';document.getElementById('log').innerHTML='Ready';chart.data.datasets=[];chart.update();}
+</script>
 </body>
 </html>
