@@ -1,1 +1,401 @@
-s
+コラッツ予想シミュレーターを完全に英語化しました。
+以下の変更を加えています：
+ * テキストの翻訳: 「計算過程」「実行」「偶数」などの日本語をすべて適切な英語に置き換えました。
+ * プレースホルダー/ヒント: 説明文や初期表示のメッセージを英語に統一しました。
+ * グラフのラベル: グラフの軸（Steps / Value）やツールチップの単位も英語に変更しました。
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collatz Conjecture Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:     #0b0b18;
+    --card:   #111120;
+    --card2:  #0d0d1c;
+    --accent: #00ffd5;
+    --dim:    #1e3348;
+    --dim2:   #2a4560;
+    --fg:     #8fb3cc;
+    --even:   #4db8ff;
+    --odd:    #ff9f43;
+    --glow:   rgba(0,255,213,.12);
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--dim);
+    justify-content: center;
+  }
+  .header h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  /* Description */
+  .description {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--fg);
+    opacity: 0.9;
+  }
+
+  /* Input row */
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .input-row label {
+    font-size: 12px;
+    color: var(--fg);
+    white-space: nowrap;
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--card);
+    border: 1.5px solid var(--dim);
+    border-radius: 6px;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color .2s;
+    min-width: 0;
+  }
+  .input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .btn-run {
+    background: var(--accent);
+    color: #0b0b18;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 8px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn-run:hover { opacity: .88; }
+  .btn-run:active { transform: scale(.96); }
+  .btn-clear {
+    background: var(--card);
+    color: var(--dim2);
+    border: 1.5px solid var(--dim);
+    border-radius: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn-clear:hover { color: var(--fg); border-color: var(--dim2); }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .stat-chip {
+    background: var(--card2);
+    border: 1px solid var(--dim);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--fg);
+    display: none;
+  }
+  .stat-chip span { color: var(--accent); }
+  .stat-chip.visible { display: block; }
+
+  /* Chart */
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--dim);
+    border-radius: 10px;
+    padding: 12px 12px 8px;
+    position: relative;
+    height: 220px;
+  }
+  .chart-wrap canvas { display: block; }
+
+  /* Log */
+  .log-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim2);
+    letter-spacing: 2px;
+    padding: 0 2px;
+  }
+  .log-box {
+    background: var(--card);
+    border: 1px solid var(--dim);
+    border-radius: 10px;
+    height: 320px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: var(--dim2) transparent;
+  }
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--dim2); border-radius: 4px; }
+  .log-box .head { color: var(--accent); font-weight: bold; display: block; }
+  .log-box .even { color: var(--even); display: block; }
+  .log-box .odd  { color: var(--odd); display: block; }
+  .log-box .done { color: var(--accent); font-weight: bold; margin-top: 4px; display: block; }
+  .log-box .hint {
+    color: var(--dim2);
+    font-size: 12px;
+    margin-top: 60px;
+    text-align: center;
+    display: block;
+  }
+
+  /* Status */
+  .status {
+    font-size: 11px;
+    color: var(--dim2);
+    font-family: 'Share Tech Mono', monospace;
+    padding: 0 2px;
+    height: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>Collatz Conjecture Simulator</h1>
+  </div>
+  <div class="description">
+    The Collatz Conjecture states that for any positive integer, if you repeat the operation of dividing it by 2 if it is even, or multiplying it by 3 and adding 1 if it is odd, it will always eventually reach 1. Proposed by Lothar Collatz in 1937.
+  </div>
+  <hr style="border: 0; border-top: 1px solid var(--dim);">
+
+  <div class="input-row">
+    <label>Number:</label>
+    <input type="number" id="numInput" min="1" placeholder="e.g. 30" />
+    <button class="btn-run" id="btnRun">Run</button>
+    <button class="btn-clear" id="btnClear" title="Clear">✕</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip" id="chipInput">Input: <span id="statN">—</span></div>
+    <div class="stat-chip" id="chipSteps">Steps: <span id="statSteps">—</span></div>
+    <div class="stat-chip" id="chipMax">Max: <span id="statMax">—</span></div>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <div class="log-label">PROCESS LOG</div>
+  <div class="log-box" id="logBox">
+    <span class="hint">Enter a number and click Run to start.</span>
+  </div>
+
+  <div class="status" id="statusBar">Enter any positive integer and press the Run button.</div>
+</div>
+
+<script>
+const input   = document.getElementById('numInput');
+const btnRun  = document.getElementById('btnRun');
+const btnClear= document.getElementById('btnClear');
+const logBox  = document.getElementById('logBox');
+const statusBar=document.getElementById('statusBar');
+
+const chips = [
+  document.getElementById('chipInput'),
+  document.getElementById('chipSteps'),
+  document.getElementById('chipMax'),
+];
+const statN     = document.getElementById('statN');
+const statSteps = document.getElementById('statSteps');
+const statMax   = document.getElementById('statMax');
+
+const EVEN = '#4db8ff';
+const ODD  = '#ff9f43';
+const ACCENT='#00ffd5';
+const GRID = '#1a2e40';
+const FG   = '#8fb3cc';
+
+const ctx = document.getElementById('myChart').getContext('2d');
+let chart = new Chart(ctx, {
+  type: 'line',
+  data: { labels: [], datasets: [] },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111120',
+        borderColor: '#1e3348',
+        borderWidth: 1,
+        titleColor: ACCENT,
+        bodyColor: FG,
+        callbacks: {
+          label: ctx => ` Value: ${ctx.parsed.y.toLocaleString()}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: FG, font: { size: 10 }, maxTicksLimit: 10 },
+        grid:  { color: GRID },
+        title: { display: true, text: 'Steps', color: '#445566', font: { size: 10 } }
+      },
+      y: {
+        ticks: { color: FG, font: { size: 10 }, callback: v => v.toLocaleString() },
+        grid:  { color: GRID },
+        title: { display: true, text: 'Value', color: '#445566', font: { size: 10 } }
+      }
+    }
+  }
+});
+
+function collatz(n) {
+  const seq = [n];
+  const logs = [];
+  let x = n;
+  while (x > 1) {
+    if (x % 2 === 0) {
+      logs.push({ type: 'even', text: `# ${x} is Even → Divide by 2` });
+      logs.push({ type: 'even', text: `  ${x} / 2 = ${x / 2}` });
+      x = x / 2;
+    } else {
+      logs.push({ type: 'odd', text: `# ${x} is Odd → Multiply by 3 + 1` });
+      logs.push({ type: 'odd', text: `  3 * ${x} + 1 = ${3 * x + 1}` });
+      x = 3 * x + 1;
+    }
+    seq.push(x);
+  }
+  logs.push({ type: 'done', text: ` Reached ${x} (${seq.length - 1} steps)` });
+  return { seq, logs };
+}
+
+function run() {
+  const raw = input.value.trim();
+  const n = parseInt(raw, 10);
+  if (!raw || isNaN(n) || n <= 0 || !Number.isInteger(n)) {
+    input.style.borderColor = '#e24b4a';
+    setTimeout(() => input.style.borderColor = '', 600);
+    return;
+  }
+
+  const { seq, logs } = collatz(n);
+  const steps = seq.length - 1;
+  const maxVal = Math.max(...seq);
+
+  statN.textContent     = n.toLocaleString();
+  statSteps.textContent = steps;
+  statMax.textContent   = maxVal.toLocaleString();
+  chips.forEach(c => c.classList.add('visible'));
+
+  logBox.innerHTML = `<span class="head">Input: ${n.toLocaleString()}</span>`;
+  logs.forEach(({ type, text }) => {
+    const span = document.createElement('span');
+    span.className = type;
+    span.textContent = text;
+    logBox.appendChild(span);
+  });
+  logBox.scrollTop = 0;
+
+  const labels = seq.map((_, i) => i);
+  const evenPts = seq.map((v, i) => v % 2 === 0 ? { x: i, y: v } : null).filter(Boolean);
+  const oddPts  = seq.map((v, i) => v % 2 !== 0 ? { x: i, y: v } : null).filter(Boolean);
+
+  chart.data.labels = labels;
+  chart.data.datasets = [
+    {
+      type: 'line',
+      data: seq,
+      borderColor: '#1e4060',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: { target: 'origin', above: 'rgba(0,255,213,.04)' },
+      tension: 0.2,
+      order: 2
+    },
+    {
+      type: 'scatter',
+      data: evenPts,
+      backgroundColor: EVEN,
+      borderColor: EVEN,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      label: 'Even / 2',
+      order: 1
+    },
+    {
+      type: 'scatter',
+      data: oddPts,
+      backgroundColor: ODD,
+      borderColor: ODD,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      label: 'Odd * 3 + 1',
+      order: 1
+    }
+  ];
+
+  chart.update();
+  statusBar.textContent = `Input: ${n} | Steps: ${steps} | Max: ${maxVal.toLocaleString()}`;
+}
+
+function clear() {
+  input.value = '';
+  logBox.innerHTML = '<span class="hint">Enter a number and click Run to start.</span>';
+  chips.forEach(c => c.classList.remove('visible'));
+  chart.data.labels = [];
+  chart.data.datasets = [];
+  chart.update();
+  statusBar.textContent = 'Enter a number → Run';
+  input.focus();
+}
+
+btnRun.addEventListener('click', run);
+btnClear.addEventListener('click', clear);
+input.addEventListener('keydown', e => e.key === 'Enter' && run());
+input.focus();
+</script>
+</body>
+</html>
+
